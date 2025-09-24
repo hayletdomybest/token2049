@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login</title>
+  <style>
+    body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+    input { margin: 5px 0; padding: 8px; width: 200px; }
+    button { margin-top: 10px; padding: 8px 16px; cursor: pointer; }
+    #error { color: red; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Admin Login</h1>
+  <input id="username" placeholder="Username">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <p id="error"></p>
+
+  <script>
+    let config = {};
+
+    // Load config.json before doing login
+    async function loadConfig() {
+      const res = await fetch("config.json");
+      config = await res.json();
+    }
+
+    async function login() {
+      const account = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      document.getElementById("error").textContent = "";
+
+      try {
+        if (!config.host) {
+          await loadConfig();
+        }
+
+        const res = await fetch(`${config.host}/v1/campaign/admin/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ account, password })
+        });
+
+        if (!res.ok) {
+          throw new Error("Login failed: " + res.status);
+        }
+
+        const data = await res.json();
+        if (!data.token) {
+          throw new Error("Invalid response format");
+        }
+
+        localStorage.setItem("adminToken", data.token);
+        localStorage.setItem("adminTokenExpiry", data.token_expired_at);
+
+        // Redirect to menu page
+        window.location.href = "menu.html";
+
+      } catch (err) {
+        document.getElementById("error").textContent = err.message;
+      }
+    }
+
+    // Load config.json on page load
+    window.onload = loadConfig;
+  </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+{
+  "host": "http://localhost:8888",
+  "frontendDomain": "http://localhost:8888/register"
+}

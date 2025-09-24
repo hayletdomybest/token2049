@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Code Login</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    #qrcode {
+      margin: 20px 0;
+    }
+    #countdown {
+      font-size: 18px;
+      color: #555;
+      margin-bottom: 10px;
+    }
+    #linkBox {
+      margin: 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #linkText {
+      font-size: 14px;
+      color: #333;
+      word-break: break-all;
+      max-width: 300px;
+    }
+    button {
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      transition: background 0.2s ease;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Scan QR Code to Login</h1>
+  <div id="qrcode"></div>
+  <div id="countdown"></div>
+
+  <!-- Link and copy button -->
+  <div id="linkBox">
+    <span id="linkText"></span>
+    <button id="copyBtn">Copy</button>
+  </div>
+
+  <button id="refreshBtn">Refresh Manually</button>
+
+  <!-- qrcode.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+  <script>
+    let config = {};
+    let countdownTimer;
+    let currentUrl = "";
+
+    // Format seconds to hh:mm:ss or mm:ss
+    function formatTime(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      if (h > 0) {
+        return `${h}h ${m}m ${s}s`;
+      } else {
+        return `${m}m ${s}s`;
+      }
+    }
+
+    async function loadConfig() {
+      const res = await fetch("config.json");
+      config = await res.json();
+      generateQRCode(); // Generate QR after config is loaded
+    }
+
+    async function generateQRCode() {
+      try {
+        const token = localStorage.getItem("adminToken");
+        if (!token) {
+          alert("Not logged in, please login first");
+          window.location.href = "login.html";
+          return;
+        }
+
+        // Call backend API to get QR token
+        const res = await fetch(`${config.host}/v1/campaign/auth/qrcode`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch QR code token: " + res.status);
+        }
+
+        const data = await res.json();
+        const { token: qrToken, token_expired_at } = data;
+
+        // Calculate remaining seconds
+        let remaining = token_expired_at - Math.floor(Date.now() / 1000);
+
+        // Build redirect URL
+        currentUrl = `${config.frontendDomain}?token=${qrToken}`;
+
+        // Clear old QR and countdown
+        document.getElementById("qrcode").innerHTML = "";
+        clearInterval(countdownTimer);
+
+        // Generate new QR code
+        new QRCode(document.getElementById("qrcode"), {
+          text: currentUrl,
+          width: 256,
+          height: 256
+        });
+
+        // Show link
+        document.getElementById("linkText").textContent = currentUrl;
+
+        // Start countdown
+        const countdownEl = document.getElementById("countdown");
+        countdownEl.textContent = `Expires in ${formatTime(remaining)}`;
+
+        countdownTimer = setInterval(() => {
+          remaining--;
+          if (remaining > 0) {
+            countdownEl.textContent = `Expires in ${formatTime(remaining)}`;
+          } else {
+            clearInterval(countdownTimer);
+            countdownEl.textContent = "Token expired, refreshing...";
+            generateQRCode(); // Auto refresh
+          }
+        }, 1000);
+
+      } catch (err) {
+        clearInterval(countdownTimer);
+        document.getElementById("countdown").textContent = "Failed to generate, please refresh manually";
+        console.error(err);
+      }
+    }
+
+    function copyLink() {
+      if (!currentUrl) return;
+      navigator.clipboard.writeText(currentUrl)
+        .then(() => alert("Link copied!"))
+        .catch(err => alert("Failed to copy: " + err));
+    }
+
+    window.onload = loadConfig;
+    document.getElementById("refreshBtn").addEventListener("click", generateQRCode);
+    document.getElementById("copyBtn").addEventListener("click", copyLink);
+  </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Menu</title>
+  <style>
+    body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 50px; }
+    button { margin: 10px; padding: 10px 20px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Admin Menu</h1>
+  <button onclick="goTo('qrcode.html')">Get QR Code</button>
+  <button onclick="goTo('manager-users.html')">Manage Users</button>
+  <button onclick="logout()">Logout</button>
+
+  <script>
+    // Check if logged in
+    if (!localStorage.getItem("adminToken")) {
+      window.location.href = "login.html";
+    }
+
+    function goTo(page) {
+      window.location.href = page;
+    }
+
+    function logout() {
+      localStorage.removeItem("adminToken");
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+</html>
